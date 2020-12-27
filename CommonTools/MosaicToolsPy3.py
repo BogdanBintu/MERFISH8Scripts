@@ -2,7 +2,7 @@
 #This is intended to deal with the mosaics created either by Steve (part of storm-control)
 #or generically by files having x,y and ims
 
-from PIL import Image
+#from PIL import Image
 import pickle
 import numpy as np
 import glob
@@ -77,13 +77,17 @@ class Mosaic(object):
     def get_correction(self,ims):
         return np.median(ims,0)
     def get_ims(self):
-        self.ims = [dic["data"] for dic in self.dics]
-    def get_mosaic(self,ims=None,xs_um=None,ys_um=None,rot=-2,um_per_pixel_dic={'10x':0.92,'60x':0.153,'20x':0.46}):
+        self.ims = [dic.get("data",dic['numpy_data']) for dic in self.dics]
+    def get_mosaic(self,ims=None,xs_um=None,ys_um=None,rot=-2,um_per_pixel_dic={'10x':0.92,'60x':0.153,'20x':0.46},invert_X=False,invert_Y=False,transpose=False):
         um_per_pix = um_per_pixel_dic[self.obj]
         if ims is None:
             self.get_ims()
             ims = self.ims
             xs_um,ys_um=self.pos_x,self.pos_y
+        invert_X = -1 if invert_X else 1
+        invert_Y = -1 if invert_Y else 1
+        
+        ims = [im[::invert_X,::invert_Y].T if transpose else im[::invert_X,::invert_Y] for im in ims]
         ims_c = np.median(ims,0)
         self.im = compose_mosaic(ims,ims_c,xs_um,ys_um,um_per_pix=um_per_pix,rot = rot,plt_val=False,tag='steve')
     def save(self,filename,im_min=None,im_max=None):
@@ -95,8 +99,9 @@ class Mosaic(object):
         im=(im-im_min)/(im_max-im_min)
         im[im<0]=0
         im[im>1]=1
-        result = Image.fromarray((im * 255).astype(np.uint8))
-        result.save(filename)
+        #result = Image.fromarray((im * 255).astype(np.uint8))
+        #result.save(filename)
+        cv2.imwrite(filename,(im * 255).astype(np.uint8))
     def mask(self,filename,sz=[22,22],plot_val=False):
         self.sz=sz
         image = Image.open(filename)

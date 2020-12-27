@@ -15,7 +15,29 @@ import glob,os
 # The superclass containing those functions that 
 # are common to reading a (STORM/diffraction-limited) movie file.
 # This was originally develloped by Hazen Babcok and extended by Bogdan Bintu
-
+def readInfoFile(info_file):
+    """Transform dax info file to dictionary format"""
+    #ensure appropriate extension
+    info_file_=info_file.replace('.dax','.inf').replace('.tif','.inf')
+    try:
+        lines = [ln for ln in open(info_file_,'r')]
+        dic={}
+        for ln in lines:
+            splits = ln[:-1].split(' =')
+            if len(splits)>1:
+                try:
+                    dic[splits[0]]=float(splits[1])
+                except:
+                    dic[splits[0]]=splits[1]
+    except:
+        pass
+    try:
+        dic ={}
+        stage_str = [ln for ln in open(info_file.replace('.dax','.xml').replace('.tif','.xml'),'r') if 'stage_position' in ln][0]
+        dic['Stage X'],dic['Stage Y'] = eval(stage_str.split('>')[1].split('<')[0])
+    except:
+        pass
+    return dic
 class Reader:
     
     # Close the file on cleanup.
@@ -104,41 +126,41 @@ class DaxReader(Reader):
         lock_target_re = re.compile(r'Lock Target = ([\d\.\-]+)')
         scalemax_re = re.compile(r'scalemax = ([\d\.\-]+)')
         scalemin_re = re.compile(r'scalemin = ([\d\.\-]+)')
+        if os.path.exists(self.inf_filename):
+            inf_file = open(self.inf_filename, "r")
+            while 1:
+                line = inf_file.readline()
+                if not line: break
+                m = size_re.match(line)
+                if m:
+                    self.image_height = int(m.group(1))
+                    self.image_width = int(m.group(2))
+                m = length_re.match(line)
+                if m:
+                    self.number_frames = int(m.group(1))
+                m = endian_re.search(line)
+                if m:
+                    if m.group(1) == "big":
+                        self.bigendian = 1
+                    else:
+                        self.bigendian = 0
+                m = stagex_re.match(line)
+                if m:
+                    self.stage_x = float(m.group(1))
+                m = stagey_re.match(line)
+                if m:
+                    self.stage_y = float(m.group(1))
+                m = lock_target_re.match(line)
+                if m:
+                    self.lock_target = float(m.group(1))
+                m = scalemax_re.match(line)
+                if m:
+                    self.scalemax = int(m.group(1))
+                m = scalemin_re.match(line)
+                if m:
+                    self.scalemin = int(m.group(1))
 
-        inf_file = open(self.inf_filename, "r")
-        while 1:
-            line = inf_file.readline()
-            if not line: break
-            m = size_re.match(line)
-            if m:
-                self.image_height = int(m.group(1))
-                self.image_width = int(m.group(2))
-            m = length_re.match(line)
-            if m:
-                self.number_frames = int(m.group(1))
-            m = endian_re.search(line)
-            if m:
-                if m.group(1) == "big":
-                    self.bigendian = 1
-                else:
-                    self.bigendian = 0
-            m = stagex_re.match(line)
-            if m:
-                self.stage_x = float(m.group(1))
-            m = stagey_re.match(line)
-            if m:
-                self.stage_y = float(m.group(1))
-            m = lock_target_re.match(line)
-            if m:
-                self.lock_target = float(m.group(1))
-            m = scalemax_re.match(line)
-            if m:
-                self.scalemax = int(m.group(1))
-            m = scalemin_re.match(line)
-            if m:
-                self.scalemin = int(m.group(1))
-
-        inf_file.close()
+            inf_file.close()
 
         # set defaults, probably correct, but warn the user 
         # that they couldn't be determined from the inf file.
